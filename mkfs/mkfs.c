@@ -136,7 +136,6 @@ main(int argc, char *argv[])
       shortname = argv[i];
     
     assert(index(shortname, '/') == 0);
-
     if((fd = open(argv[i], 0)) < 0)
       die(argv[i]);
 
