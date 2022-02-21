@@ -25,9 +25,6 @@ struct
   struct run *freelist;
 } kmem;
 
-static volatile uint64 totalsize = 0;
-static volatile uint64 allocsize = 0;
-
 void kinit()
 {
   initlock(&kmem.lock, "kmem");
@@ -40,7 +37,6 @@ void freerange(void *pa_start, void *pa_end)
   p = (char *)PGROUNDUP((uint64)pa_start);
   for (; p + PGSIZE <= (char *)pa_end; p += PGSIZE)
   {
-    totalsize += PGSIZE;
     kfree(p);
   }
 }
@@ -65,11 +61,6 @@ void kfree(void *pa)
   r->next = kmem.freelist;
   kmem.freelist = r;
   release(&kmem.lock);
-
-  if (allocsize > 0)
-  {
-    allocsize -= PGSIZE;
-  }
 }
 
 // Allocate one 4096-byte page of physical memory.
@@ -87,15 +78,19 @@ kalloc(void)
   release(&kmem.lock);
 
   if (r)
-  {
     memset((char *)r, 5, PGSIZE); // fill with junk
-    allocsize += PGSIZE;
-  }
 
   return (void *)r;
 }
 
 uint64 freemem()
 {
-  return totalsize - allocsize;
+  uint64 s = 0;
+  acquire(&kmem.lock);
+  for (struct run *r = kmem.freelist; r; r = r->next)
+  {
+    s += PGSIZE;
+  };
+  release(&kmem.lock);
+  return s;
 }
