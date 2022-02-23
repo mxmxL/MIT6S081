@@ -387,3 +387,6 @@ myapi.key:
 
 
 .PHONY: handin tarball tarball-pref clean grade handin-check
+
+quit:
+	killall qemu-system-riscv64
