@@ -15,7 +15,9 @@
             "miDebuggerPath": "/usr/local/Cellar/riscv-gnu-toolchain/main.reinstall/bin/riscv64-unknown-elf-gdb",
             "environment": [],
             "externalConsole": false,
-            "MIMode": "gdb"
+            "MIMode": "gdb",
+            "preLaunchTask": "qemu-gdb",
+            "serverLaunchTimeout": 5000
         }
     ]
 }

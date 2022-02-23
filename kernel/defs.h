@@ -104,6 +104,8 @@ void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
+void            proc_freekernelpagetable(pagetable_t);
+void pagetablecopy(pagetable_t, pagetable_t, uint64, uint64);
 
 // swtch.S
 void            swtch(struct context*, struct context*);
@@ -154,7 +156,7 @@ void            uartputc_sync(int);
 int             uartgetc(void);
 
 // vm.c
-pagetable_t            kvminit(void);
+void            kvminit(void);
 void            kvminithart(void);
 void            kvmmap(pagetable_t, uint64, uint64, uint64, int);
 int             mappages(pagetable_t, uint64, uint64, uint64, int);
@@ -171,6 +173,7 @@ int             copyout(pagetable_t, uint64, char *, uint64);
 int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
 void            vmprint(pagetable_t);
+pagetable_t kpgtblmakeforuser();
 
 // plic.c
 void            plicinit(void);
@@ -192,3 +195,6 @@ void            statsinc(void);
 
 // sprintf.c
 int             snprintf(char*, int, char*, ...);
+
+// vmcopyin.c
+int copyin_new(pagetable_t, char *, uint64, uint64);

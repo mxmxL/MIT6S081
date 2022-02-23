@@ -20,6 +20,8 @@ static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
 
+extern pagetable_t kernel_pagetable;
+
 // helps ensure that wakeups of wait()ing
 // parents are not lost. helps obey the
 // memory model when using p->parent.
@@ -47,7 +49,6 @@ void
 procinit(void)
 {
   struct proc *p;
-  
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
   for(p = proc; p < &proc[NPROC]; p++) {
@@ -93,7 +94,6 @@ allocpid() {
   pid = nextpid;
   nextpid = nextpid + 1;
   release(&pid_lock);
-
   return pid;
 }
 
@@ -135,14 +135,20 @@ found:
     return 0;
   }
 
-  p->kernel_pagetable=kvminit();
-  printf("address of kernel page table of process [%d]%s: %p\n", p->pid, p->name, p->kernel_pagetable);
+  p->kernel_pagetable=kpgtblmakeforuser();
    if(p->kernel_pagetable == 0){
     freeproc(p);
     release(&p->lock);
     return 0;
   }
-  p->kstack = KSTACK((int) (p - proc));
+  uint64 pa = (uint64)kalloc();
+  uint64 va = KSTACK((int) (p - proc));
+  if (mappages(p->kernel_pagetable, va, PGSIZE, pa, PTE_R | PTE_W) != 0){
+      freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+  p->kstack = va;
 
   // Set up new context to start executing at forkret,
   // which returns to user space.
@@ -164,8 +170,8 @@ freeproc(struct proc *p)
   p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
-  // if(p->kernel_pagetable)
-  //   proc_freepagetable(p->kernel_pagetable, p->sz);
+  if(p->kernel_pagetable)
+    proc_freekernelpagetable(p->kernel_pagetable);
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
@@ -220,6 +226,23 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
   uvmfree(pagetable, sz);
 }
 
+void
+proc_freekernelpagetable(pagetable_t pagetable)
+{
+   // there are 2^9 = 512 PTEs in a page table.
+  for (int i = 0; i < 512; i++)
+  {
+    pte_t pte = pagetable[i];
+    if ((pte & PTE_V) && (pte & (PTE_R | PTE_W | PTE_X)) == 0)
+    {
+      // this PTE points to a lower-level page table.
+      uint64 child = PTE2PA(pte);
+      proc_freekernelpagetable((pagetable_t)child);
+      pagetable[i] = 0;
+    }
+  }
+}
+
 // a user program that calls exec("/init")
 // od -t xC initcode
 uchar initcode[] = {
@@ -254,6 +277,7 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+  pagetablecopy(p->kernel_pagetable, p->pagetable, 0, p->sz);
 
   release(&p->lock);
 }
@@ -271,10 +295,15 @@ growproc(int n)
     if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
       return -1;
     }
+    
   } else if(n < 0){
     sz = uvmdealloc(p->pagetable, sz, sz + n);
   }
   p->sz = sz;
+  if(sz>=PLIC){
+    return -1;
+  }
+  pagetablecopy(p->kernel_pagetable, p->pagetable, 0, sz);
   return 0;
 }
 
@@ -299,6 +328,7 @@ fork(void)
     return -1;
   }
   np->sz = p->sz;
+  pagetablecopy(np->kernel_pagetable, np->pagetable, 0, np->sz);
 
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
@@ -465,10 +495,13 @@ scheduler(void)
         c->proc = p;
         w_satp(MAKE_SATP(p->kernel_pagetable));
         sfence_vma();
+        printf("switch to p: %d with page: %p\n", p->pid, p->pagetable);
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
+        w_satp(MAKE_SATP(kernel_pagetable));
+        sfence_vma();
         c->proc = 0;
       }
       release(&p->lock);
@@ -631,6 +664,7 @@ either_copyin(void *dst, int user_src, uint64 src, uint64 len)
 {
   struct proc *p = myproc();
   if(user_src){
+    printf("pid: %d\n", p->pid);
     return copyin(p->pagetable, dst, src, len);
   } else {
     memmove(dst, (char*)src, len);

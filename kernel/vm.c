@@ -23,7 +23,7 @@ kvmmake(void)
 
   kpgtbl = (pagetable_t)kalloc();
   memset(kpgtbl, 0, PGSIZE);
-
+  
   // uart registers
   kvmmap(kpgtbl, UART0, UART0, PGSIZE, PTE_R | PTE_W);
 
@@ -49,15 +49,41 @@ kvmmake(void)
   return kpgtbl;
 }
 
-// Initialize the one kernel_pagetable
-pagetable_t kvminit(void)
-{
-  if(!kernel_pagetable){
-    kernel_pagetable = kvmmake();
-    printf("address of kernel page table: %p\n", kernel_pagetable);
+pagetable_t kpgtblmakeforuser(){
+   pagetable_t kpgtbl;
+
+  kpgtbl = (pagetable_t)kalloc();
+  if(!kpgtbl){
     return 0;
   }
-  return kvmmake();
+  memset(kpgtbl, 0, PGSIZE);
+
+  // uart registers
+  kvmmap(kpgtbl, UART0, UART0, PGSIZE, PTE_R | PTE_W);
+
+  // virtio mmio disk interface
+  kvmmap(kpgtbl, VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
+
+  // PLIC
+  kvmmap(kpgtbl, PLIC, PLIC, 0x400000, PTE_R | PTE_W);
+
+  // map kernel text executable and read-only.
+  kvmmap(kpgtbl, KERNBASE, KERNBASE, (uint64)etext - KERNBASE, PTE_R | PTE_X);
+
+  // map kernel data and the physical RAM we'll make use of.
+  kvmmap(kpgtbl, (uint64)etext, (uint64)etext, PHYSTOP - (uint64)etext, PTE_R | PTE_W);
+
+  // map the trampoline for trap entry/exit to
+  // the highest virtual address in the kernel.
+  kvmmap(kpgtbl, TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
+
+  return kpgtbl;
+}
+
+// Initialize the one kernel_pagetable
+void kvminit(void)
+{
+  kernel_pagetable = kvmmake();
 }
 
 // Switch h/w page table register to the kernel's page table,
@@ -382,24 +408,25 @@ int copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 // Return 0 on success, -1 on error.
 int copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
 {
-  uint64 n, va0, pa0;
+  // uint64 n, va0, pa0;
 
-  while (len > 0)
-  {
-    va0 = PGROUNDDOWN(srcva);
-    pa0 = walkaddr(pagetable, va0);
-    if (pa0 == 0)
-      return -1;
-    n = PGSIZE - (srcva - va0);
-    if (n > len)
-      n = len;
-    memmove(dst, (void *)(pa0 + (srcva - va0)), n);
+  // while (len > 0)
+  // {
+  //   va0 = PGROUNDDOWN(srcva);
+  //   pa0 = walkaddr(pagetable, va0);
+  //   if (pa0 == 0)
+  //     return -1;
+  //   n = PGSIZE - (srcva - va0);
+  //   if (n > len)
+  //     n = len;
+  //   memmove(dst, (void *)(pa0 + (srcva - va0)), n);
 
-    len -= n;
-    dst += n;
-    srcva = va0 + PGSIZE;
-  }
-  return 0;
+  //   len -= n;
+  //   dst += n;
+  //   srcva = va0 + PGSIZE;
+  // }
+  // return 0;
+  return copyin_new(pagetable, dst, srcva, len);
 }
 
 // Copy a null-terminated string from user to kernel.
@@ -478,4 +505,23 @@ void vmprint(pagetable_t pagetable)
 {
   printf("page table %p\n", pagetable);
   _vmprint(0, pagetable);
+}
+
+void pagetablecopy(pagetable_t dst, pagetable_t src, uint64 srcva, uint64 size){
+  srcva = PGROUNDDOWN(srcva);
+  size = PGROUNDUP(size);
+  uint64 target = size+srcva;
+  for(; srcva < target; srcva+=PGSIZE){
+    pte_t* pte_from = walk(src, srcva, 0);
+    if(!pte_from){
+      panic("pagetablecopy");
+    }
+    uint64 pa = PTE2PA(*pte_from);
+    uint64 flag = PTE_FLAGS(*pte_from);
+    pte_t* pte_to = walk(dst, srcva, 1);
+    if(!pte_to){
+      panic("pagetablecopy");
+    }
+    *pte_to = PA2PTE(pa) | (flag & (~PTE_U));
+  }
 }
