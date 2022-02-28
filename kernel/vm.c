@@ -50,7 +50,7 @@ kvmmake(void)
 }
 
 pagetable_t kpgtblmakeforuser(){
-   pagetable_t kpgtbl;
+  pagetable_t kpgtbl;
 
   kpgtbl = (pagetable_t)kalloc();
   if(!kpgtbl){

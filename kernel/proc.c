@@ -144,7 +144,7 @@ found:
   uint64 pa = (uint64)kalloc();
   uint64 va = KSTACK((int) (p - proc));
   if (mappages(p->kernel_pagetable, va, PGSIZE, pa, PTE_R | PTE_W) != 0){
-      freeproc(p);
+    freeproc(p);
     release(&p->lock);
     return 0;
   }
@@ -495,7 +495,7 @@ scheduler(void)
         c->proc = p;
         w_satp(MAKE_SATP(p->kernel_pagetable));
         sfence_vma();
-        printf("switch to p: %d with page: %p\n", p->pid, p->pagetable);
+        printf("switch to process [%d]:[%d] with page address %p\n", p->pid,nextpid, p->pagetable);
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
