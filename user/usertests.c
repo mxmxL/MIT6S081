@@ -2724,6 +2724,7 @@ main(int argc, char *argv[])
 
   printf("usertests starting\n");
   int free0 = countfree();
+  printf("free: %d\n", free0);
   int free1 = 0;
   int fail = 0;
   for (struct test *t = tests; t->s != 0; t++) {

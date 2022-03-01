@@ -198,3 +198,4 @@ int             snprintf(char*, int, char*, ...);
 
 // vmcopyin.c
 int copyin_new(pagetable_t, char *, uint64, uint64);
+int copyinstr_new(pagetable_t, char *, uint64, uint64);

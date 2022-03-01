@@ -13,6 +13,8 @@
         "unordered_map": "c",
         "utility": "c",
         "vector": "c",
-        "sstream": "c"
+        "sstream": "c",
+        "__config": "c",
+        "locale": "c"
     }
 }

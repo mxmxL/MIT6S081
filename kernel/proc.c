@@ -300,9 +300,7 @@ growproc(int n)
     sz = uvmdealloc(p->pagetable, sz, sz + n);
   }
   p->sz = sz;
-  if(sz>=PLIC){
-    return -1;
-  }
+ 
   pagetablecopy(p->kernel_pagetable, p->pagetable, 0, sz);
   return 0;
 }
@@ -495,7 +493,7 @@ scheduler(void)
         c->proc = p;
         w_satp(MAKE_SATP(p->kernel_pagetable));
         sfence_vma();
-        printf("switch to process [%d]:[%d] with page address %p\n", p->pid,nextpid, p->pagetable);
+        // printf("switch to process [%d]:[%d] with page address %p\n", p->pid,nextpid, p->pagetable);
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
@@ -664,7 +662,6 @@ either_copyin(void *dst, int user_src, uint64 src, uint64 len)
 {
   struct proc *p = myproc();
   if(user_src){
-    printf("pid: %d\n", p->pid);
     return copyin(p->pagetable, dst, src, len);
   } else {
     memmove(dst, (char*)src, len);
