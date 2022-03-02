@@ -170,6 +170,9 @@ freeproc(struct proc *p)
   p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
+  if(p->kstack){
+    uvmunmap(p->kernel_pagetable, p->kstack, 1, 1);
+  }
   if(p->kernel_pagetable)
     proc_freekernelpagetable(p->kernel_pagetable);
   p->pagetable = 0;
@@ -181,6 +184,7 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  p->kstack = 0;
 }
 
 // Create a user page table for a given process,
@@ -241,6 +245,7 @@ proc_freekernelpagetable(pagetable_t pagetable)
       pagetable[i] = 0;
     }
   }
+  kfree(pagetable);
 }
 
 // a user program that calls exec("/init")
@@ -295,13 +300,12 @@ growproc(int n)
     if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
       return -1;
     }
-    
+    pagetablecopy(p->kernel_pagetable, p->pagetable, sz-n, n);
   } else if(n < 0){
     sz = uvmdealloc(p->pagetable, sz, sz + n);
   }
   p->sz = sz;
  
-  pagetablecopy(p->kernel_pagetable, p->pagetable, 0, sz);
   return 0;
 }
 
@@ -658,7 +662,7 @@ either_copyout(int user_dst, uint64 dst, void *src, uint64 len)
 // depending on usr_src.
 // Returns 0 on success, -1 on error.
 int
-either_copyin(void *dst, int user_src, uint64 src, uint64 len)
+ either_copyin(void *dst, int user_src, uint64 src, uint64 len)
 {
   struct proc *p = myproc();
   if(user_src){
@@ -696,4 +700,18 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+uint64 nproc()
+{
+  uint64 n = 0;
+  struct proc *p;
+  for (p = proc; p < &proc[NPROC]; p++)
+  {
+    if (p->state == UNUSED)
+      continue;
+    n++;
+  }
+
+  return n;
 }

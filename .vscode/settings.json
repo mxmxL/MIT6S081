@@ -15,6 +15,8 @@
         "vector": "c",
         "sstream": "c",
         "__config": "c",
-        "locale": "c"
-    }
+        "locale": "c",
+        "sysinfo.h": "c",
+        "user.h": "c"
+}
 }

@@ -2638,7 +2638,7 @@ main(int argc, char *argv[])
     void (*f)(char *);
     char *s;
   } tests[] = {
-    {execout, "execout"},
+    // {execout, "execout"}, // slow
     {copyin, "copyin"},
     {copyout, "copyout"},
     {copyinstr1, "copyinstr1"},
@@ -2693,7 +2693,7 @@ main(int argc, char *argv[])
     {dirfile, "dirfile"},
     {iref, "iref"},
     {forktest, "forktest"},
-    {bigdir, "bigdir"}, // slow
+    // {bigdir, "bigdir"}, // slow
     { 0, 0},
   };
 
@@ -2724,7 +2724,6 @@ main(int argc, char *argv[])
 
   printf("usertests starting\n");
   int free0 = countfree();
-  printf("free: %d\n", free0);
   int free1 = 0;
   int fail = 0;
   for (struct test *t = tests; t->s != 0; t++) {
