@@ -308,3 +308,6 @@ myapi.key:
 
 
 .PHONY: handin tarball tarball-pref clean grade handin-check
+
+quit:	
+	sudo killall qemu-system-riscv64
