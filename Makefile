@@ -388,3 +388,7 @@ myapi.key:
 
 
 .PHONY: handin tarball tarball-pref clean grade handin-check
+
+addr2line:	
+	riscv64-unknown-elf-addr2line -e kernel/kernel
+	
