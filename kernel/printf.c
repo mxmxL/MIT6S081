@@ -134,5 +134,27 @@ printfinit(void)
 }
 
 void backtrace(void){
-  printf("backtrace\n");
+  uint64 fp = r_fp();  
+  uint64 st = PGROUNDUP(fp);
+  uint64 sb = PGROUNDDOWN(fp);
+  uint64 sp = r_sp();
+  printf("backtrace:\n");
+  printf("fp: %p, st: %p, sb: %p, size: %d\n", fp, st, sb, st-sb);
+
+  int found = 0;
+  for(;sp<st;sp-=8){
+    uint64 val = *((uint64*)(sp));
+    if(found){
+      found = 0;
+      printf("ra: %p\n", val);
+      break;
+    }
+    if(val == fp){
+      printf("found\n");
+      found = 1;
+    }
+  }
+
+  // uint64 ra = *((uint64*)(fp-8));
+  // printf("ra: %p\n", ra);
 }

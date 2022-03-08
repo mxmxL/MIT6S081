@@ -221,10 +221,25 @@ uchar initcode[] = {
   0x00, 0x00, 0x00, 0x00
 };
 
+int gg(int x) {
+  return x+3;
+}
+
+int ff(int x) {
+  return gg(x);
+}
+
+
 // Set up first user process.
 void
 userinit(void)
 {
+  // uint64 fp=r_fp();
+  // uint64 sp=r_sp();
+  // uint64 ra=r_ra();
+  int val = ff(5);
+  // printf("val: %d, fp: %p, sp: %p, ra: %p\n", val, fp, sp, ra);
+  printf("val: %d\n", val);
   struct proc *p;
 
   p = allocproc();
